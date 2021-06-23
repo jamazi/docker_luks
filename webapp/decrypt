@@ -1,0 +1,79 @@
+#!/bin/bash
+
+readonly app_path="$(dirname $(realpath "$0"))"
+name=
+workspace=
+volume_file=
+key_file=
+password=
+detach=
+
+help="Usage: $(basename "$0") [-h] -n <name> -w <workspace> -p <password>
+Decrypt volume for docker
+
+-h, --help                  Display help
+-n, --name                  Name used to identify docker container and encrypted volume
+-w, --workspace             Directory to store volume file,decryption stub and config
+-p, --password              Luks decryption password
+-d, --detach                Unmount and close existing encrypted volume (--name and --workspace must be provided)
+"
+
+msg() {
+  echo -e "$@" >&2
+}
+
+options=$(getopt -l "help,name:,workspace:,password:,detach" -o "hn:w:p:d" -- "$@")
+eval set -- "${options}"
+while true; do
+  case "$1" in
+  -h | --help)
+    echo -e "${help}"
+    exit 0
+    ;;
+  -n | --name)
+    shift
+    name="$1"
+    crypt_name="${name}-luks"
+    ;;
+  -w | --workspace)
+    shift
+    workspace="$1"
+    ;;
+  -p | --password)
+    shift
+    password="$1"
+    ;;
+  -d | --detach)
+    detach=true
+    ;;
+  --)
+    shift
+    break
+    ;;
+  esac
+  shift
+done
+
+mount_point="${workspace}/mount"
+volume_file="${workspace}/volume.img"
+
+if [[ -n "${name}" && -s "${volume_file}" && -n "${password}" ]]; then
+  if [ ! -b "/dev/mapper/${crypt_name}" ]; then
+    echo "${password}" | cryptsetup luksOpen "${volume_file}" "${crypt_name}"
+  fi
+  if [ -b "/dev/mapper/${crypt_name}" ]; then
+    mkdir -p "${mount_point}"
+    mount "/dev/mapper/${crypt_name}" "${mount_point}"
+    if mountpoint -q "${mount_point}"; then
+      touch "${mount_point}/healthy"
+      exit 0
+    fi
+  fi
+elif [[ -n "${detach}" && -n "${crypt_name}" && -n "${workspace}" ]]; then
+  sudo umount --force --lazy --recursive "${mount_point}"
+  sudo cryptsetup --deferred close "${crypt_name}"
+else
+  msg "missing arguments"
+  msg "${help}"
+  exit 1
+fi

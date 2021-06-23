@@ -1,0 +1,118 @@
+#!/bin/bash
+
+readonly app_path="$(dirname $(realpath "$0"))"
+name=
+workspace=
+volume_file=
+volume_size=
+password=
+user=
+group=
+detach=
+
+help="Usage: $(basename "$0") [-h] [-d] [-u user] [-g group] -n <name> -w <workspace> -s <volume-size> -p <password>
+Create encrypted volume file for docker
+
+-h, --help                  Display help
+-d, --detach                Unmount and close existing encrypted volume (--name and --workspace must be provided)
+-n, --name                  Name used to identify docker container and encrypted volume
+-w, --workspace             Directory to store volume file,decryption stub and config 
+-s, --volume-size           Volume size
+-p, --password              Luks password
+-u, --user                  User owner of encrypted volume
+-g, --group                 Group owner of encrypted volume
+"
+
+msg() {
+  echo -e "$@" >&2
+}
+
+options=$(getopt -l "help,detach,user:,group:,name:,workspace:,volume-size:,password:" -o "hdu:g:n:w:s:p:" -- "$@")
+eval set -- "${options}"
+while true; do
+  case "$1" in
+  -h | --help)
+    echo -e "${help}"
+    exit 0
+    ;;
+  -d | --detach)
+    detach=true
+    ;;
+  -n | --name)
+    shift
+    name="$1"
+    crypt_name="${name}-luks"
+    ;;
+  -w | --workspace)
+    shift
+    workspace="$1"
+    mkdir -p "${workspace}"
+    ;;
+  -s | --volume-size)
+    shift
+    volume_size="$1"
+    ;;
+  -p | --password)
+    shift
+    password="$1"
+    ;;
+  -u | --user)
+    shift
+    user="$1"
+    ;;
+  -g | --group)
+    shift
+    group="$1"
+    ;;
+  --)
+    shift
+    break
+    ;;
+  esac
+  shift
+done
+
+mount_point="${workspace}/mount"
+volume_file="${workspace}/volume.img"
+
+if [[ -n "${name}" && -n "${workspace}" && -n "${volume_size}" && -n "${password}" ]]; then
+  if [ ! -s "${volume_file}" ]; then
+    msg "Creating and encrypting new volume file of size ${volume_size}"
+    truncate -s "${volume_size}" "${volume_file}"
+    echo "${password}" | sudo cryptsetup --batch-mode luksFormat "${volume_file}"
+    echo "${password}" | sudo cryptsetup luksOpen "${volume_file}" "${crypt_name}"
+    sudo mkfs.ext4 "/dev/mapper/${crypt_name}"
+  else
+    msg "Reusing existing volume file"
+    echo "${password}" | sudo cryptsetup luksOpen "${volume_file}" "${crypt_name}"
+  fi
+
+  mkdir -p "${mount_point}"
+  if [[ -n "${user}" || -n "${group}" ]]; then
+    sudo mount "/dev/mapper/${crypt_name}" "${mount_point}"
+    if [ -n "${user}" ]; then
+      sudo chown "${user}" "${mount_point}"
+    fi
+    if [ -n "${group}" ]; then
+      sudo chgrp "${group}" "${mount_point}"
+    fi
+  fi
+
+  if [[ -n "${user}" || -n "${group}" ]]; then
+    sudo umount --lazy --recursive "${mount_point}"
+  fi
+  sudo cryptsetup --deferred close "${crypt_name}"
+
+  cp -r "${app_path}/webapp" "${workspace}/"
+  cp "${app_path}/docker-compose.yml" "${workspace}/"
+  echo "WORKSPACE = '/app'" > "${workspace}/webapp/config.py"
+  echo "NAME = '${name}'" >> "${workspace}/webapp/config.py"
+
+elif [[ -n "${detach}" && -n "${crypt_name}" && -n "${workspace}" ]]; then
+  sudo umount --lazy --recursive "${mount_point}"
+  sudo cryptsetup --deferred close "${crypt_name}"
+else
+  msg "missing arguments"
+  msg "${help}"
+  exit 1
+fi
