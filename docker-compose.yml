@@ -10,7 +10,7 @@ services:
       - ./mount:/app/mount:shared
       - ./volume.img:/app/volume.img:rw
     ports:
-      - 127.0.0.1:5000:80
+      - 127.0.0.1:8000:8000
 
   stage2:
     image: bash
@@ -33,7 +33,7 @@ services:
   myadmin:
     image: phpmyadmin/phpmyadmin
     ports: 
-      - 127.0.0.1:8000:80
+      - 127.0.0.1:8001:80
     environment:
       PMA_HOST: database
     depends_on:

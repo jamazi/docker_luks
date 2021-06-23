@@ -8,4 +8,4 @@ RUN apt update && \
 
 CMD [ "python", "app.py" ]
 
-EXPOSE 80
+EXPOSE 8000
