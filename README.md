@@ -7,6 +7,11 @@ Unfortunately I did not find a proper way to run the compose services at reboot 
 
     @reboot sleep 60s && /usr/local/bin/docker-compose -f /opt/mysql/docker-compose.yml up -d
 
-#
+# Demo:
+
+
+https://user-images.githubusercontent.com/31401744/127346723-94db0eda-43da-4219-8926-db241b1b55f1.mp4
+
+
 
 Contributions to work this properly are welcomed :)
