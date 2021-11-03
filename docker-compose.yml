@@ -7,15 +7,27 @@ services:
       context: ./webapp
     volumes:
       - /dev:/dev
-      - ./mount:/app/mount:shared
-      - ./volume.img:/app/volume.img:rw
+      - type: bind
+        source: ./mount
+        target: /app/mount
+        bind:
+          propagation: shared
+      - type: bind
+        source: ./volume.img
+        target: /app/volume.img
+        bind:
+          propagation: shared
     ports:
       - 127.0.0.1:8000:8000
 
   stage2:
     image: bash
     volumes:
-      - ./mount:/app:shared
+      - type: bind
+        source: ./mount
+        target: /app
+        bind:
+          propagation: shared
     depends_on:
       - stage1
     entrypoint: [ "bash", "-c", "until [ -f /app/healthy ]; do echo waiting; sleep 5; done" ]
