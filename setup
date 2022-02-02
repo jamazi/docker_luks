@@ -104,7 +104,11 @@ if [[ -n "${name}" && -n "${workspace}" && -n "${volume_size}" && -n "${password
   sudo cryptsetup --deferred close "${crypt_name}"
 
   cp -r "${app_path}/webapp" "${workspace}/"
-  cp "${app_path}/docker-compose.yml" "${workspace}/"
+  cp "${app_path}/docker-compose.startup.yml" "${workspace}/"
+  cp "${app_path}/docker-compose.app.yml" "${workspace}/"
+  cp "${app_path}/startup.sh" "${workspace}/"
+  sed -i "s|PROJECT_PATH=|PROJECT_PATH=${workspace}|" "${workspace}/startup.sh"
+  chmod +x "${workspace}/startup.sh"
   echo "WORKSPACE = '/app'" > "${workspace}/webapp/config.py"
   echo "NAME = '${name}'" >> "${workspace}/webapp/config.py"
 

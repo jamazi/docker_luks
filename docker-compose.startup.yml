@@ -3,6 +3,7 @@ version: "3"
 services:
   stage1:
     privileged: true
+    restart: on-failure
     build:
       context: ./webapp
     volumes:
@@ -22,6 +23,7 @@ services:
 
   stage2:
     image: bash
+    restart: on-failure
     volumes:
       - type: bind
         source: ./mount
@@ -32,21 +34,3 @@ services:
       - stage1
     entrypoint: [ "bash", "-c", "until [ -f /app/healthy ]; do echo waiting; sleep 5; done" ]
 
-  database:
-    image: mysql
-    volumes:
-      - ./mount/mysql:/var/lib/mysql:shared
-    environment: 
-      MYSQL_ROOT_PASSWORD: root
-    depends_on:
-      stage2:
-        condition: service_completed_successfully
-
-  myadmin:
-    image: phpmyadmin/phpmyadmin
-    ports: 
-      - 127.0.0.1:8001:80
-    environment:
-      PMA_HOST: database
-    depends_on:
-      - database
