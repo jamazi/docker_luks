@@ -3,9 +3,9 @@
 
 This will create a luks volume file inside /opt/mysql dir and generate skeleton docker-compose that will use the encrypted volume. The compose file has a simple webapp service that will pass password from user to cryptsetup and decrypt the luks volume first time.
 
-Unfortunately I did not find a proper way to run the compose services at reboot with help of docker restart policy, so you will need to use crontab or systemd to start the compose services :
+Unfortunately I did not find a proper way to run the compose services at reboot in specific order with help of docker restart policy, so you will need to use crontab or systemd to run the startup.sh shell script file, the shell script will make sure the app services run only after decryption stage finish successfully :
 
-    @reboot sleep 60s && /usr/local/bin/docker-compose -f /opt/mysql/docker-compose.yml up -d
+    @reboot root /opt/mysql/startup.sh
 
 # Demo:
 
