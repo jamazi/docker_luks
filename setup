@@ -45,7 +45,7 @@ while true; do
     ;;
   -w | --workspace)
     shift
-    workspace="$1"
+    workspace="$(realpath --canonicalize-missing $1)"
     mkdir -p "${workspace}"
     ;;
   -s | --volume-size)
